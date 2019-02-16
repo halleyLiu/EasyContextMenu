@@ -41,7 +41,7 @@ interface IContextMenuItem {
 
 export class RegEdit {
     header: string;
-    contextMenuItems: IContextMenuItem[];
+    contextMenuItems: Map<string, IContextMenuItem>;
 
     regValueName: string;
     shellNameShort: string;
@@ -49,16 +49,17 @@ export class RegEdit {
 
     constructor() {
         this.header = 'Windows Registry Editor Version 5.00\n';
-        this.contextMenuItems = [];
+        this.contextMenuItems = new Map();
     
         this.regValueName = 'VSCode';
         this.shellNameShort = 'Code';
         this.exeBasename = 'Code';
     }
 
-    public push(softwareClassesRootKey: SoftwareClassesRootKey, subkey: Subkey, exePath: string, shift?: boolean): void {
-        this.contextMenuItems.push({
-            key: softwareClassesRootKey + subkey.replace(/\$\{regValueName\}/g, this.regValueName),
+    public set(softwareClassesRootKey: SoftwareClassesRootKey, subkey: Subkey, exePath: string, shift?: boolean): void {
+        let key = softwareClassesRootKey + subkey.replace(/\$\{regValueName\}/g, this.regValueName);
+        this.contextMenuItems.set(key, {
+            key: key,
             message: `Open with ${this.shellNameShort}`,
             exePath: exePath.replace(/\\/g, '\\\\'),
             arg: subkey === Subkey.File ? "%1" : "%V",
@@ -66,9 +67,18 @@ export class RegEdit {
         });
     }
 
+    public delete(softwareClassesRootKey: SoftwareClassesRootKey, subkey: Subkey) {
+        let key = softwareClassesRootKey + subkey.replace(/\$\{regValueName\}/g, this.regValueName);
+        this.contextMenuItems.delete(key);
+    }
+
+    public clear() {
+        this.contextMenuItems.clear();
+    }
+
     public getInstall(): string {
         let str = this.header;
-        for(let item of this.contextMenuItems) {
+        this.contextMenuItems.forEach((item, _) => {
             if(item.shift) {
                 str += 
 `
@@ -91,20 +101,20 @@ export class RegEdit {
 @="\\\"${item.exePath}\\\" \\\"${item.arg}\\\""
 `;
             }
-        }
+        });
         return str;
     }
 
     public getUninstall(): string {
         let str = this.header;
-        for(let item of this.contextMenuItems) {
+        this.contextMenuItems.forEach((item, _) => {
             str +=
 `
 [-${item.key}]
 
 [-${item.key}\\command]
 `;
-        }
+        });
         return str;
     }
 
